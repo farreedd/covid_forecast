@@ -30,6 +30,4 @@ def get_time(country):
 
 country = 'Spain'
 df = get_time(country)
-# if len(df) > 1 and df.iloc[-2,0] >= df.iloc[-1,0]:
-#     df.drop(df.tail(1).index,inplace=True)
 print(df.tail(10))
