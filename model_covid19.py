@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[84]:
+# In[138]:
 
 
 # importing required libraries
@@ -15,7 +15,7 @@ get_ipython().run_line_magic('matplotlib', 'inline')
 import datetime
 
 
-# In[85]:
+# In[139]:
 
 
 # importing files and assigning variables
@@ -47,8 +47,14 @@ if len(df)>1 and df.iloc[-2,0] >= df.iloc[-1,0]:
     df.drop(d.tail(1).index, inplace=True)
 # (df.tail(10))
 
+# countries = [get_time('Qatar'),get_time('Bahrain'), get_time('Oman')]
+# cc = 0
+# for x in countries: 
+#     cc += x['Confirmed']            
+# cc.tail(10)
 
-# In[86]:
+
+# In[140]:
 
 
 def model_lag(n, a, alpha, lag, t):
@@ -87,7 +93,7 @@ plot_color = ['#99990077', '#FF000055']
 # plt.show()
 
 
-# In[87]:
+# In[141]:
 
 
 start_date = df.index[0]
@@ -108,23 +114,101 @@ extended_model_sim.set_index(0, inplace=True)
 
 extended_model_sim.columns = ['Model-Confirmed']
 plot_color = ['#99990077', '#FF000055']
-pd.concat([extended_model_sim, df], axis=1).plot(color = plot_color)
-print(country + ' COVID-19 Forecast')
-plt.show()
+# pd.concat([extended_model_sim, df], axis=1).plot(color = plot_color)
+# print(country + ' COVID-19 Forecast')
+# plt.show()
 
 
-# In[88]:
+# In[142]:
 
 
-pd.options.display.float_format = '{:20,.0f}'.format
-concat_df = pd.concat([df, extended_model_sim], axis=1)
-concat_df[concat_df.index.day % 3 == 0]
+# pd.options.display.float_format = '{:20,.0f}'.format
+# concat_df = pd.concat([df, extended_model_sim], axis=1)
+# concat_df[concat_df.index.day % 3 == 0]
 
 
-# In[ ]:
+# In[150]:
 
 
+def display_fit(df, opt_confirmed, ax):
+    model_x = []
+    
+    isValid = True
+    
+    for t in range(len(df)):
+        model_x.append([df.index[t], model(*opt_confirmed, t)])
+        if (t > len(df)):
+            last_row = model_x[-1]
+            if (isValid):
+                    last_row2 = model_x[-2]
+                    isValid = False
+    model_sim = pd.DataFrame(model_x, dtype=int)
+    model_sim.set_index(0, inplace=True)
+    model_sim.columns = ['Model-Confirmed']
+    plot_color = ['#99990077', '#FF000055']
+    
+    return pd.concat([model_sim, df], axis=1).plot(ax=ax, figsize=(14, 10), color = plot_color)
 
+def display_extended_curve(df, opt_confirmed, ax):
+    start_date = df.index[0]
+    n_days = len(df) + 40
+    extended_model_x = []
+    
+    isValid = True
+    
+    for t in range(n_days):
+        extended_model_x.append([start_date + datetime.timedelta(days=t), model(*opt_confirmed, t)])
+        
+        if (t > len(df)):
+            last_row = extended_model_x[-1]
+            if (isValid):
+                last_row2 = extended_model_x[-2]
+                isValid = False
+                    
+    extended_model_sim = pd.DataFrame(extended_model_x, dtype=int)
+    extended_model_sim.set_index(0, inplace=True)
+    extended_model_sim.columns = ['Model-Confirmed']
+    
+    plot_color = ['#99990077', '#FF000055']
+    
+    return pd.concat([extended_model_sim, df], axis=1).plot(ax=ax, figsize=(14, 10), color = plot_color)
+
+def opt_display_model(df, stats):
+    if len(df) > 1 and df.iloc[-2,0] >= df.iloc[-1,0]:
+        df.drop(df.tail(1).index,inplace=True)
+    global model_index
+    model_index = 0
+    opt_confirmed = minimize(model_loss, x0=np.array([200000, 0.05, 15]), method='Nelder-Mead', tol=1e-5).x
+    model_index = 1
+    if min(opt_confirmed) > 0:
+        stats.append([country, *opt_confirmed])
+        n_plot = len(stats)
+        plt.figure(1)
+#         ax1 = plt.subplot(221)
+#         display_fit(df, opt_confirmed, ax1)
+        ax2 = plt.subplot(222)
+        display_extended_curve(df, opt_confirmed, ax2)
+        plt.show()
+
+
+# In[151]:
+
+
+stats = []
+
+df = cases_table[['Country/Region', 'Date', 'Confirmed']].groupby('Date').sum()
+print('World COVID-19 Prediction (World data)')
+opt_display_model(df, stats)
+
+
+# In[154]:
+
+
+# stats = []
+# for country in ['Qatar', 'Bahrain', 'Oman', 'Kuwait', 'United Arab Emirates']:
+#     df = get_time(country)
+#     print('{} COVID-19 Prediction'.format(country))
+#     opt_display_model(df, stats)
 
 
 # In[ ]:
