@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[138]:
+# In[283]:
 
 
 # importing required libraries
@@ -15,7 +15,7 @@ get_ipython().run_line_magic('matplotlib', 'inline')
 import datetime
 
 
-# In[139]:
+# In[284]:
 
 
 # importing files and assigning variables
@@ -47,14 +47,11 @@ if len(df)>1 and df.iloc[-2,0] >= df.iloc[-1,0]:
     df.drop(d.tail(1).index, inplace=True)
 # (df.tail(10))
 
-# countries = [get_time('Qatar'),get_time('Bahrain'), get_time('Oman')]
-# cc = 0
-# for x in countries: 
-#     cc += x['Confirmed']            
-# cc.tail(10)
+
+# In[285]:
 
 
-# In[140]:
+# *********individual country until datapoints************
 
 
 def model_lag(n, a, alpha, lag, t):
@@ -93,8 +90,10 @@ plot_color = ['#99990077', '#FF000055']
 # plt.show()
 
 
-# In[141]:
+# In[286]:
 
+
+# ***********Extended model for next 30 days*************
 
 start_date = df.index[0]
 pred_days = len(df) + 30
@@ -114,12 +113,12 @@ extended_model_sim.set_index(0, inplace=True)
 
 extended_model_sim.columns = ['Model-Confirmed']
 plot_color = ['#99990077', '#FF000055']
-# pd.concat([extended_model_sim, df], axis=1).plot(color = plot_color)
-# print(country + ' COVID-19 Forecast')
-# plt.show()
+pd.concat([extended_model_sim, df], axis=1).plot(color = plot_color)
+print(country + ' COVID-19 Forecast')
+plt.show()
 
 
-# In[142]:
+# In[287]:
 
 
 # pd.options.display.float_format = '{:20,.0f}'.format
@@ -127,8 +126,10 @@ plot_color = ['#99990077', '#FF000055']
 # concat_df[concat_df.index.day % 3 == 0]
 
 
-# In[150]:
+# In[288]:
 
+
+# **********Forecasting model for the world datapoints for next 30 days************
 
 def display_fit(df, opt_confirmed, ax):
     model_x = []
@@ -191,24 +192,112 @@ def opt_display_model(df, stats):
         plt.show()
 
 
-# In[151]:
+# In[289]:
+
+
+# ********Calling the model for world datapoints********
+
+# stats = []
+
+# df = cases_table[['Country/Region', 'Date', 'Confirmed']].groupby('Date').sum()
+# print('World COVID-19 Prediction (World data)')
+# opt_display_model(df, stats)
+
+
+# In[290]:
 
 
 stats = []
-
-df = cases_table[['Country/Region', 'Date', 'Confirmed']].groupby('Date').sum()
-print('World COVID-19 Prediction (World data)')
-opt_display_model(df, stats)
-
-
-# In[154]:
+for country in ['Qatar', 'Bahrain', 'Oman', 'Kuwait', 'United Arab Emirates', 'China', 
+               'Italy', 'Spain']:
+    df = get_time(country)
+    print('{} COVID-19 Prediction'.format(country))
+    opt_display_model(df, stats)
 
 
-# stats = []
-# for country in ['Qatar', 'Bahrain', 'Oman', 'Kuwait', 'United Arab Emirates']:
-#     df = get_time(country)
-#     print('{} COVID-19 Prediction'.format(country))
-#     opt_display_model(df, stats)
+# In[291]:
+
+
+# *********Qatar and Neighboring Countries*********
+
+cc = (get_time('Qatar')+get_time('Bahrain')+get_time('Oman')+get_time('Saudi Arabia')+
+            get_time('Iran')+get_time('Oman'))
+
+# print(ctr)
+
+def model_lag(n, a, alpha, lag, t):
+    lag = min(max(lag, -100), 100)
+    return max(n, 0) * (1 - math.e ** (min(-a, 0) * (t - lag))) ** max(alpha, 0)
+def model(n, a, alpha, t):
+    return max(n, 0) * (1 - math.e ** (min(-a, 0) * t)) ** max(alpha, 0)
+
+
+def model_loss(var):
+    n, a, alpha = var
+    model_x = []
+    r = 0
+    for t in range(len(cc)):
+        r += (model(n, a, alpha, t) - cc.iloc[t, model_index]) ** 2
+    return math.sqrt(r) 
+
+use_lag_model = False
+if use_lag_model:
+    opt = minimize(model_loss, x0=np.array([200000, 0.05, 15, 0]), method='Nelder-Mead', tol=1e-5).x
+else:
+    model_index = 0
+    opt_confirmed = minimize(model_loss, x0=np.array([200000, 0.05, 15]), method='Nelder-Mead', tol=1e-5).x
+
+model_x = []
+for t in range(len(cc)):
+    model_x.append([cc.index[t], model(*opt_confirmed, t)])
+model_sim = pd.DataFrame(model_x, dtype=int)
+model_sim.set_index(0, inplace=True)
+model_sim.columns = ['Model-Confirmed']
+
+plot_color = ['#99990077', '#FF000055']
+
+
+start_date = cc.index[0]
+pred_days = len(cc) + 30
+extended_model_x = []
+last_row = []
+
+isValid = True
+for t in range(pred_days):
+    extended_model_x.append([start_date + datetime.timedelta(days=t), model(*opt_confirmed, t)])
+    if (t > len(cc)):
+        last_row = extended_model_x[-1]
+        if (isValid):
+            last_row2 = extended_model_x[-2]
+            isValid = False
+extended_model_sim = pd.DataFrame(extended_model_x, dtype=int)
+extended_model_sim.set_index(0, inplace=True)
+
+extended_model_sim.columns = ['Model-Confirmed']
+plot_color = ['#99990077', '#FF000055']
+pd.concat([extended_model_sim, cc], axis=1).plot(color = plot_color)
+print('Middle East' + ' COVID-19 Forecast')
+plt.show()
+
+
+# In[282]:
+
+
+# pd.options.display.float_format = '{:20,.0f}'.format
+# concat_cc = pd.concat([cc, extended_model_sim], axis=1)
+# concat_cc[concat_cc.index.day % 3 == 0]
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
 
 
 # In[ ]:
